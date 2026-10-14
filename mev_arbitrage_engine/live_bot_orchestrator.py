@@ -22,6 +22,7 @@ from curve_stableswap_engine import CurveStableSwapPool
 from uniswap_v3_clamm_engine import UniswapV3CLAMMPool
 from stanford_cfmm_router import CFMMConvexRouter
 from zero_loss_guardian import ZeroLossGuardian
+from risk_manager import RiskManager
 from tx_signer import TransactionSigner
 from flashbots_broadcaster import FlashbotsBroadcaster, BUILDER_ENDPOINTS
 
@@ -114,6 +115,26 @@ def run_full_production_cycle():
 
     if not approved:
         print("   Trade aborted by Zero-Loss Guardian. Zero network traffic sent.")
+        return
+
+    # -------------------------------------------------------------------------
+    # 4b. PRODUCTION RISK MANAGER (CIRCUIT BREAKER & LOSS CAPS)
+    # -------------------------------------------------------------------------
+    print("\n4b. [Production Risk Manager Gate]")
+    risk_mgr = RiskManager(
+        max_trade_size_usd=50_000.0,
+        min_profit_to_gas_ratio=2.0,
+        max_daily_gas_spend_usd=1.00
+    )
+    risk_ok, risk_msg = risk_mgr.allow_trade(
+        trade_size_usd=arbitrage_capital_usd,
+        expected_gross_profit_usd=telemetry['gross_profit_usd'],
+        estimated_gas_usd=telemetry['gas_cost_usd']
+    )
+    print(f"   Risk Gate Status:  {'🛡️ PASS - APPROVED' if risk_ok else '🛑 REJECTED BY CIRCUIT BREAKER'}")
+    print(f"   Risk Decision:     {risk_msg}")
+    if not risk_ok:
+        print("   Trade blocked by Risk Manager circuit breaker. Aborting execution.")
         return
 
     # -------------------------------------------------------------------------
