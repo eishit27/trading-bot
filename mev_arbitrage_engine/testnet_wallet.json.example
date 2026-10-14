@@ -1,0 +1,6 @@
+{
+  "network": "Base Sepolia Testnet",
+  "chain_id": 84532,
+  "address": "0xYourWalletAddressHere",
+  "private_key": "0xYourPrivateKeyHere"
+}
